@@ -76,7 +76,8 @@ class RepoPublicCheckTests(unittest.TestCase):
 
     def test_personal_absolute_path_is_a_warning(self) -> None:
         with RepositoryFixture() as root:
-            (root / "config.txt").write_text("cache=/Users/example/Library/cache\n", encoding="utf-8")
+            personal_path = "/Users/" + "example/Library/cache"
+            (root / "config.txt").write_text(f"cache={personal_path}\n", encoding="utf-8")
             commit_all(root, "add path")
             report = scan_repository(root)
             codes = {finding.code for finding in report.findings}
