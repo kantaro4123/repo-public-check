@@ -44,6 +44,8 @@ jobs:
           repo-public-check --version
           repo-public-check . --json > report.json
           python -c 'import json; data=json.load(open("report.json")); assert data["ready"] is True'
+          repo-public-check . --sarif > report.sarif
+          python -c 'import json; data=json.load(open("report.sarif")); assert data["version"] == "2.1.0"; assert data["runs"][0]["tool"]["driver"]["name"] == "repo-public-check"'
 
       - name: Dogfood public-readiness checks
         run: repo-public-check . --strict
