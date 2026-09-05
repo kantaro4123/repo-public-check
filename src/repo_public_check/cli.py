@@ -9,6 +9,7 @@ from . import __version__
 from .checks import scan_repository
 from .git import GitError, discover_repository
 from .model import Finding, Report, Severity
+from .sarif import report_to_sarif
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -17,7 +18,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="Check whether a Git repository is ready to be made public.",
     )
     parser.add_argument("path", nargs="?", default=".", help="repository path (default: .)")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="emit machine-readable JSON")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", dest="json_output", help="emit machine-readable JSON")
+    output.add_argument("--sarif", action="store_true", help="emit SARIF 2.1.0 for code-scanning integrations")
     parser.add_argument("--strict", action="store_true", help="treat warnings as a failing result")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
@@ -86,6 +89,10 @@ def _render_json(report: Report) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
+def _render_sarif(report: Report) -> None:
+    print(json.dumps(report_to_sarif(report, __version__), indent=2, sort_keys=True))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -100,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json_output:
         _render_json(report)
+    elif args.sarif:
+        _render_sarif(report)
     else:
         _render_human(report)
 
