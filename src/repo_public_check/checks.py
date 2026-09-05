@@ -27,7 +27,7 @@ GENERIC_SECRET_RE = re.compile(
 PERSONAL_PATH_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("macOS user path", re.compile(r"/Users/[A-Za-z0-9._-]+/")),
     ("Linux home path", re.compile(r"/home/[A-Za-z0-9._-]+/")),
-    ("Windows user path", re.compile(r"[A-Za-z]:\\\\Users\\\\[^\\\s]+\\\\", re.IGNORECASE)),
+    ("Windows user path", re.compile(r"[A-Za-z]:\\Users\\[^\\\s]+\\", re.IGNORECASE)),
 )
 
 LOCAL_URL_RE = re.compile(
