@@ -14,6 +14,10 @@ BLOCK_FILE_BYTES = 100 * 1024 * 1024
 SECRET_PATTERNS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("private-key", "Private key material", re.compile(r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----")),
     ("github-token", "GitHub token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b")),
+    ("openai-api-key", "OpenAI API key", re.compile(r"\bsk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}\b")),
+    ("anthropic-api-key", "Anthropic API key", re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}\b")),
+    ("npm-token", "npm access token", re.compile(r"\bnpm_[A-Za-z0-9]{20,}\b")),
+    ("gitlab-token", "GitLab access token", re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b")),
     ("aws-access-key", "AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("slack-token", "Slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b")),
     ("stripe-live-key", "Stripe live secret key", re.compile(r"\bsk_live_[A-Za-z0-9]{16,}\b")),
