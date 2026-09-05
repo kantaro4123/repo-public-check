@@ -49,6 +49,39 @@ class SecretPatternTests(unittest.TestCase):
                 finally:
                     temp.cleanup()
 
+    def test_obvious_secret_placeholders_do_not_warn(self) -> None:
+        placeholders = (
+            "your_api_key_here",
+            "example-token-value",
+            "<insert-secret-here>",
+            "${API_KEY}",
+            "changeme123",
+        )
+        for value in placeholders:
+            with self.subTest(value=value):
+                temp, root = make_repo()
+                try:
+                    (root / "config.txt").write_text(f"api_key={value}\n", encoding="utf-8")
+                    git(root, "add", "config.txt")
+                    git(root, "commit", "-m", "add placeholder")
+                    report = scan_repository(root)
+                    codes = {finding.code for finding in report.findings}
+                    self.assertNotIn("generic-secret-assignment", codes)
+                finally:
+                    temp.cleanup()
+
+    def test_non_placeholder_secret_assignment_still_warns(self) -> None:
+        temp, root = make_repo()
+        try:
+            (root / "config.txt").write_text("api_key=s3cr3t-value-9281\n", encoding="utf-8")
+            git(root, "add", "config.txt")
+            git(root, "commit", "-m", "add suspicious value")
+            report = scan_repository(root)
+            codes = {finding.code for finding in report.findings}
+            self.assertIn("generic-secret-assignment", codes)
+        finally:
+            temp.cleanup()
+
 
 if __name__ == "__main__":
     unittest.main()
