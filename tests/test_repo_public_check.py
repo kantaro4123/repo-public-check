@@ -94,6 +94,26 @@ class RepoPublicCheckTests(unittest.TestCase):
             self.assertIn("personal-path", codes)
             self.assertTrue(report.ready)
 
+    def test_tracked_symlink_is_not_followed(self) -> None:
+        with RepositoryFixture() as root:
+            outside = root.parent / f"{root.name}-outside-secret.txt"
+            outside.write_text("TOKEN=ghp_" + ("a" * 30) + "\n", encoding="utf-8")
+            try:
+                link = root / "external-secret.txt"
+                link.symlink_to(outside)
+                commit_all(root, "add symlink")
+                report = scan_repository(root)
+                codes = {finding.code for finding in report.findings}
+                self.assertIn("tracked-symlink", codes)
+                self.assertFalse(
+                    any(
+                        finding.code == "github-token" and finding.path == "external-secret.txt"
+                        for finding in report.findings
+                    )
+                )
+            finally:
+                outside.unlink(missing_ok=True)
+
     def test_sensitive_file_removed_from_head_is_found_in_history(self) -> None:
         with RepositoryFixture() as root:
             env_file = root / ".env"
