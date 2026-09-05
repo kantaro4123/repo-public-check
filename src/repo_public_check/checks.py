@@ -27,6 +27,21 @@ SECRET_PATTERNS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
 GENERIC_SECRET_RE = re.compile(
     r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token)\b\s*[:=]\s*[\"']?([^\s\"']{8,})"
 )
+PLACEHOLDER_MARKERS = (
+    "example",
+    "placeholder",
+    "insert-",
+    "insert_",
+    "your-",
+    "your_",
+    "changeme",
+    "change-me",
+    "change_me",
+    "dummy",
+    "fake",
+    "sample",
+    "not-a-real",
+)
 
 PERSONAL_PATH_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("macOS user path", re.compile(r"/Users/[A-Za-z0-9._-]+/")),
@@ -74,6 +89,16 @@ def _is_sensitive_name(path: str) -> bool:
     if name.startswith(".env") and name.endswith(SAFE_ENV_SUFFIXES):
         return False
     return any(fnmatch.fnmatch(name, pattern.lower()) for pattern in SENSITIVE_BASENAME_PATTERNS)
+
+
+def _looks_like_placeholder(value: str) -> bool:
+    candidate = value.strip().strip("\"'").lower()
+    if candidate.startswith(("${", "{{", "<")):
+        return True
+    if any(marker in candidate for marker in PLACEHOLDER_MARKERS):
+        return True
+    collapsed = candidate.replace("-", "").replace("_", "")
+    return bool(collapsed) and set(collapsed) <= {"x", "*"}
 
 
 def _read_text(path: Path) -> str | None:
@@ -176,7 +201,7 @@ def _check_text_file(root: Path, path: Path, report: Report) -> None:
             report.add(Finding(code, Severity.BLOCKER, title, "Potential credential material is present in a tracked file. Remove it and rotate the credential before publishing.", rel, _line_number(text, match.start())))
 
     generic = GENERIC_SECRET_RE.search(text)
-    if generic:
+    if generic and not _looks_like_placeholder(generic.group(1)):
         report.add(Finding("generic-secret-assignment", Severity.WARNING, "Secret-like assignment", "A password/token/key-like assignment was found. Verify that the value is not a real secret.", rel, _line_number(text, generic.start())))
 
     for label, pattern in PERSONAL_PATH_PATTERNS:
