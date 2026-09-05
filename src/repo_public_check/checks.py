@@ -4,7 +4,7 @@ import fnmatch
 import re
 from pathlib import Path
 
-from .git import history_paths, remote_url, tracked_files, tracked_ignored_files
+from .git import history_paths, remote_urls, tracked_files, tracked_ignored_files
 from .model import Finding, Report, Severity
 
 MAX_TEXT_BYTES = 2 * 1024 * 1024
@@ -35,6 +35,11 @@ LOCAL_URL_RE = re.compile(
 )
 PRIVATE_IP_RE = re.compile(
     r"(?i)https?://(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?::\d+)?"
+)
+REMOTE_CREDENTIALS_RE = re.compile(r"(?i)^[a-z][a-z0-9+.-]*://[^/@\s:]+:[^/@\s]+@")
+PRIVATE_REMOTE_RE = re.compile(
+    r"(?i)(?:localhost|127\.0\.0\.1|0\.0\.0\.0|(?:^|[.@/])[^/@/:]+\.(?:local|internal)(?=[:/]|$)|"
+    r"10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})"
 )
 TODO_RE = re.compile(r"\b(?:TODO|FIXME)\b")
 
@@ -195,6 +200,36 @@ def _check_history(root: Path, current_paths: set[str], report: Report) -> None:
         report.add(Finding("sensitive-history-more", Severity.WARNING, "More sensitive history paths found", f"{len(historical_sensitive) - 10} additional sensitive-looking historical path(s) were omitted from the display."))
 
 
+def _check_remotes(root: Path, report: Report) -> None:
+    remotes = remote_urls(root)
+    if not remotes:
+        report.add(Finding("missing-remote", Severity.INFO, "No Git remote", "The repository has no Git remote configured."))
+        return
+
+    for name, url in remotes:
+        location = f"remote:{name}"
+        if REMOTE_CREDENTIALS_RE.search(url):
+            report.add(
+                Finding(
+                    "remote-credentials",
+                    Severity.BLOCKER,
+                    "Credentials embedded in Git remote",
+                    "Remove credentials from the remote URL and rotate them if they are real. The credential value is intentionally not displayed.",
+                    location,
+                )
+            )
+        if PRIVATE_REMOTE_RE.search(url) or url.startswith(("file://", "/", "~/")):
+            report.add(
+                Finding(
+                    "private-remote",
+                    Severity.WARNING,
+                    "Local or private Git remote",
+                    "Verify that this remote does not reveal an internal hostname, private network address, or machine-specific path.",
+                    location,
+                )
+            )
+
+
 def scan_repository(root: Path) -> Report:
     tracked = tracked_files(root)
     report = Report(repository=str(root), scanned_files=len(tracked))
@@ -209,9 +244,6 @@ def scan_repository(root: Path) -> Report:
 
     current_paths = {_relative(root, path) for path in tracked}
     _check_history(root, current_paths, report)
-
-    origin = remote_url(root)
-    if origin is None:
-        report.add(Finding("missing-origin", Severity.INFO, "No origin remote", "The repository has no origin remote configured."))
+    _check_remotes(root, report)
 
     return report
