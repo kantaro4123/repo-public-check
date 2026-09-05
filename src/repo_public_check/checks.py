@@ -93,7 +93,7 @@ def _is_sensitive_name(path: str) -> bool:
 
 def _looks_like_placeholder(value: str) -> bool:
     candidate = value.strip().strip("\"'").lower()
-    if candidate.startswith(("${", "{{", "<")):
+    if candidate.startswith(("$", "{", "<", "%(", "$(")):
         return True
     if any(marker in candidate for marker in PLACEHOLDER_MARKERS):
         return True
