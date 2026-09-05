@@ -73,7 +73,8 @@ class SecretPatternTests(unittest.TestCase):
     def test_non_placeholder_secret_assignment_still_warns(self) -> None:
         temp, root = make_repo()
         try:
-            (root / "config.txt").write_text("api_key=s3cr3t-value-9281\n", encoding="utf-8")
+            suspicious = "s3cr3t-" + "value-9281"
+            (root / "config.txt").write_text(f"api_key={suspicious}\n", encoding="utf-8")
             git(root, "add", "config.txt")
             git(root, "commit", "-m", "add suspicious value")
             report = scan_repository(root)
