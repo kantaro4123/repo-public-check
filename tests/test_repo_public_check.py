@@ -84,6 +84,16 @@ class RepoPublicCheckTests(unittest.TestCase):
             self.assertIn("personal-path", codes)
             self.assertTrue(report.ready)
 
+    def test_windows_personal_path_is_a_warning(self) -> None:
+        with RepositoryFixture() as root:
+            windows_path = "C:\\" + "Users\\example\\AppData\\Local"
+            (root / "config.txt").write_text(f"cache={windows_path}\n", encoding="utf-8")
+            commit_all(root, "add windows path")
+            report = scan_repository(root)
+            codes = {finding.code for finding in report.findings}
+            self.assertIn("personal-path", codes)
+            self.assertTrue(report.ready)
+
     def test_sensitive_file_removed_from_head_is_found_in_history(self) -> None:
         with RepositoryFixture() as root:
             env_file = root / ".env"
