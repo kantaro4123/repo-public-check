@@ -114,6 +114,23 @@ class RepoPublicCheckTests(unittest.TestCase):
             finally:
                 outside.unlink(missing_ok=True)
 
+    def test_credentials_in_non_origin_remote_are_blocked(self) -> None:
+        with RepositoryFixture() as root:
+            token = "ghp_" + ("a" * 30)
+            git(root, "remote", "add", "backup", f"https://user:{token}@example.com/repo.git")
+            report = scan_repository(root)
+            codes = {finding.code for finding in report.findings}
+            self.assertIn("remote-credentials", codes)
+            self.assertFalse(report.ready)
+
+    def test_private_remote_host_is_a_warning(self) -> None:
+        with RepositoryFixture() as root:
+            git(root, "remote", "add", "origin", "ssh://git@source.internal/team/repo.git")
+            report = scan_repository(root)
+            codes = {finding.code for finding in report.findings}
+            self.assertIn("private-remote", codes)
+            self.assertTrue(report.ready)
+
     def test_sensitive_file_removed_from_head_is_found_in_history(self) -> None:
         with RepositoryFixture() as root:
             env_file = root / ".env"
