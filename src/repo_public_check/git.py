@@ -48,9 +48,26 @@ def history_paths(root: Path) -> set[str]:
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
 
+def remote_urls(root: Path) -> list[tuple[str, str]]:
+    remotes = _run_git(root, "remote", check=False)
+    if remotes.returncode != 0:
+        return []
+
+    result: list[tuple[str, str]] = []
+    for name in (line.strip() for line in remotes.stdout.splitlines()):
+        if not name:
+            continue
+        urls = _run_git(root, "remote", "get-url", "--all", name, check=False)
+        if urls.returncode != 0:
+            continue
+        for url in (line.strip() for line in urls.stdout.splitlines()):
+            if url:
+                result.append((name, url))
+    return result
+
+
 def remote_url(root: Path) -> str | None:
-    result = _run_git(root, "remote", "get-url", "origin", check=False)
-    if result.returncode != 0:
-        return None
-    value = result.stdout.strip()
-    return value or None
+    for name, url in remote_urls(root):
+        if name == "origin":
+            return url
+    return None
