@@ -101,12 +101,41 @@ def _check_metadata(root: Path, tracked: list[Path], report: Report) -> None:
         report.add(Finding("missing-security-policy", Severity.INFO, "SECURITY.md missing", "A security policy is recommended for public repositories."))
 
 
+def _check_symlink(root: Path, path: Path, report: Report) -> None:
+    rel = _relative(root, path)
+    try:
+        target = path.readlink()
+    except OSError:
+        report.add(Finding("tracked-symlink", Severity.INFO, "Tracked symbolic link", "The link target could not be inspected safely.", rel))
+        return
+
+    report.add(Finding("tracked-symlink", Severity.INFO, "Tracked symbolic link", f"Link target: {target}", rel))
+
+    target_path = target if target.is_absolute() else path.parent / target
+    try:
+        resolved = target_path.resolve(strict=False)
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        report.add(
+            Finding(
+                "symlink-outside-repo",
+                Severity.WARNING,
+                "Symbolic link points outside the repository",
+                "The scanner will not follow this link. Verify that publishing the link target is intentional.",
+                rel,
+            )
+        )
+
+
 def _check_tracked_paths(root: Path, tracked: list[Path], report: Report) -> None:
     ignored = set(tracked_ignored_files(root))
     for path in tracked:
         rel = _relative(root, path)
         parts = set(Path(rel).parts)
         name = path.name
+
+        if path.is_symlink():
+            _check_symlink(root, path, report)
 
         if _is_sensitive_name(rel):
             report.add(Finding("sensitive-filename", Severity.BLOCKER, "Sensitive-looking file is tracked", "Remove the file from Git and rotate credentials if it contained secrets.", rel))
@@ -117,7 +146,7 @@ def _check_tracked_paths(root: Path, tracked: list[Path], report: Report) -> Non
             report.add(Finding("tracked-artifact", Severity.WARNING, "Generated artifact is tracked", "Consider removing generated or machine-specific files before publishing.", rel))
 
         try:
-            size = path.stat().st_size
+            size = path.lstat().st_size
         except OSError:
             continue
         if size > BLOCK_FILE_BYTES:
@@ -173,6 +202,8 @@ def scan_repository(root: Path) -> Report:
     _check_metadata(root, tracked, report)
     _check_tracked_paths(root, tracked, report)
     for path in tracked:
+        if path.is_symlink():
+            continue
         if path.is_file():
             _check_text_file(root, path, report)
 
