@@ -44,3 +44,6 @@ jobs:
           repo-public-check --version
           repo-public-check . --json > report.json
           python -c 'import json; data=json.load(open("report.json")); assert data["ready"] is True'
+
+      - name: Dogfood public-readiness checks
+        run: repo-public-check . --strict
